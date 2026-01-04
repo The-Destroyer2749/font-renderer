@@ -28,18 +28,12 @@ struct Defaults {
     Vector3 backgroundColor;
 };
 
-void writeFontToBitset() {
+void writeFontToBitset(CharacterFont &characterFont) {
     int fontLetterSizeBytes = 31;
     int numberOfFontLetters = 2; // letters in the font
     FILE* file = fopen("../font.txt", "r");
 
-    if (!file) { // I don't even know if this works... it kinda errors out with or without this so im not sure
-        perror("fopen");
-        return;
-    }
-
     char* letterBits = (char*)malloc(sizeof(char)*(fontLetterSizeBytes+1));
-    CharacterFont characterFont;
 
     for (int i = 0; i < numberOfFontLetters; i++) {
         fread(letterBits, sizeof(char), fontLetterSizeBytes, file);
@@ -62,6 +56,21 @@ void writeFontToBitset() {
     free(letterBits);
 }
 
+std::bitset<5*5> characterToBitmap(char character, CharacterFont &characterFont) {
+    switch (character) {
+        case ('A'):
+            return characterFont[0].bit;
+            break;
+        case ('F'):
+            return characterFont[1].bit;
+            break;
+        default:
+            // perror("Unsupported character's bitset requested");
+            std::bitset<5*5> bitset("111111111111111111111111");
+            return bitset;
+    }
+}
+
 
 int main() {
 
@@ -69,6 +78,7 @@ int main() {
     rlImGuiSetup(true);
     SetExitKey(0);
     SetWindowState(FLAG_VSYNC_HINT);
+    // SetTargetFPS(2);
 
     std::array<float, 30> fpsBuffer = {}; // 30 or 60 is a good number to use generally It's best to go with what you know will be the worst case scenario for performance
     int microsecondsPerFrame;
@@ -83,16 +93,27 @@ int main() {
 
     Defaults defaultsList = {backgroundColor[0], backgroundColor[1], backgroundColor[2]};
 
-
-    writeFontToBitset();
+    CharacterFont characterFont;
+    writeFontToBitset(characterFont);
 
     int characterWidth = 5;
     int characterHeight = 5;
+    int characterRows = 10;
+    int characterColumns = 4;
     int characterHorizontalOffset = 20;
     int characterVerticalOffset = 40;
     int characterScale = 10;
     int characterHorizontalGap = 1;
     int characterVerticalGap = 3;
+    char* sentence = new char[128+1];
+    // strcpy(sentence, "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz, 1234567890 The quick brown fox jumps over the lazy dog. !-=?:~\'\""); // 120 characters currently
+
+    strcpy(sentence, "AFAFFAAAFFAAFAFFAAAFFAAFAFFAAAFFAAFAFFAAAFFA");
+
+    char* bitsetToDraw = new char [25+1];
+    strcpy(bitsetToDraw, "0101010101010101010101010");
+
+    int rectsToDraw = 0;
 
     while (!WindowShouldClose()) {
         std::chrono::time_point<std::chrono::high_resolution_clock> clockStart = std::chrono::high_resolution_clock::now();
@@ -102,15 +123,21 @@ int main() {
 
         DrawRectangleRounded(Rectangle(0,0,640,480), 0.1, 2, Color(255,255,255, 255));
 
-
-        for (int i = 0; i < 10; i++) { // rows of characters
-            for (int j = 0; j < 4; j++) { // columns of characters
-                for (int cw = 0; cw < characterWidth; cw++) { // cw = character width
-                    for (int ch = characterHeight; ch > 0; ch--) { // ch = character height
-                        if (generator() % 2) {
-                            DrawRectangle((i*characterHorizontalGap*characterScale)+(i*characterWidth*characterScale)+(cw*characterScale)+characterHorizontalOffset, (j*characterVerticalGap*characterScale)+(j*characterHeight*characterScale)+(ch*characterScale)+characterVerticalOffset, characterScale, characterScale, Color(0,0,0, 255));
+        int rectsDrawn = 0;
+        for (int i = 0; i < characterColumns; i++) {
+            for (int j = 0; j < characterRows; j++) {
+                // std::bitset<5*5> bitset = characterToBitmap(sentence[j*i+j], characterFont);
+                std::bitset<5*5> bitset(bitsetToDraw);
+                for (int ch = 0; ch < characterHeight; ch++) { // ch = character height
+                    for (int cw = 0; cw < characterWidth; cw++) { // cw = character width
+                        // std::cout << "0";
+                        if (bitset[cw*ch+cw] == 1 && rectsDrawn < rectsToDraw) {
+                            // std::cout<< "1";
+                            DrawRectangle((j*characterHorizontalGap*characterScale)+(j*characterWidth*characterScale)+(cw*characterScale)+characterHorizontalOffset, (i*characterVerticalGap*characterScale)+(i*characterHeight*characterScale)+(ch*characterScale)+characterVerticalOffset, characterScale, characterScale, Color(0,0,0, 255));
                         }
+                        rectsDrawn++;
                     }
+                    // std::cout << std::endl;
                 }
             }
         }
@@ -154,7 +181,10 @@ int main() {
             }
 
             if (ImGui::CollapsingHeader("Text", ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderInt("Scale: %d", &characterScale, 1, 25);
+                ImGui::SliderInt("Scale", &characterScale, 1, 25);
+                ImGui::InputText("Text Input", sentence, 128);
+                ImGui::SliderInt("Rects to draw", &rectsToDraw, 0, 32);
+                ImGui::InputText("Bitset", bitsetToDraw, 25+1);
             }
         }
         ImGui::End();
