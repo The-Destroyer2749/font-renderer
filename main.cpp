@@ -14,12 +14,53 @@ struct Character {
 
 struct CharacterFont {
     std::array<Character, 26> font;
+
+    Character& operator[](size_t index) {
+        return font[index];
+    }
+
+    // const Character& operator[](size_t index) const {
+    //     return font[index];
+    // }
 };
 
 struct Defaults {
     Vector3 backgroundColor;
 };
 
+void writeFontToBitset() {
+    int fontLetterSizeBytes = 31;
+    int numberOfFontLetters = 2; // letters in the font
+    FILE* file = fopen("../font.txt", "r");
+
+    if (!file) { // I don't even know if this works... it kinda errors out with or without this so im not sure
+        perror("fopen");
+        return;
+    }
+
+    char* letterBits = (char*)malloc(sizeof(char)*(fontLetterSizeBytes+1));
+    CharacterFont characterFont;
+
+    for (int i = 0; i < numberOfFontLetters; i++) {
+        fread(letterBits, sizeof(char), fontLetterSizeBytes, file);
+        int bytesSeen = 0;
+        for (int j = 0; j < fontLetterSizeBytes; j++) {
+            if (letterBits[j] == '1' || letterBits[j] == '0') {
+                if (letterBits[j] == '1') {
+                    characterFont[i].bit.set(bytesSeen); // writes each 1 and 0 to each point in each character
+                }
+                bytesSeen += 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < characterFont[0].bit.size(); i++) {
+        std::cout << characterFont[0].bit[i];
+    }
+
+    fclose(file);
+    free(letterBits);
+}
 
 
 int main() {
@@ -41,6 +82,9 @@ int main() {
     float backgroundColor[3] = {80.0f / 255.0f, 80.0f / 255.0f, 80.0f / 255.0f};
 
     Defaults defaultsList = {backgroundColor[0], backgroundColor[1], backgroundColor[2]};
+
+
+    writeFontToBitset();
 
     int characterWidth = 5;
     int characterHeight = 5;
